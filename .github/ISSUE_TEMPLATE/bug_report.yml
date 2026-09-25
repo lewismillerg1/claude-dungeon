@@ -1,0 +1,53 @@
+name: Bug report
+description: Something isn't working
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please don't paste transcript content or full
+        paths from private projects — redact anything you'd rather not publish.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. npm run dev
+        2. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Does it happen in demo mode?
+      description: Open `http://127.0.0.1:5173/?demo` — this tells us whether it's the renderer or the relay.
+      options:
+        - "Yes — happens in demo mode too"
+        - "No — only with live hooks"
+        - "Haven't tried"
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Browser console output
+      render: text
+
+  - type: input
+    id: env
+    attributes:
+      label: Node version, OS, browser
+      placeholder: "node 22.12, macOS 15, Chrome 140"
+    validations:
+      required: true

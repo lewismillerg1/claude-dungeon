@@ -151,7 +151,10 @@ function agentRelay() {
             contextTokens: 0, contextWindow: DEFAULT_WINDOW, subs: [], transcript: '', turn: null };
       agents.set(id, a);
     }
-    a.name = nameFor(ev.cwd, id) || a.name;
+    // nameFor always returns something (it falls back to an id stub), so an
+    // event that omits cwd must be skipped explicitly or it overwrites a good
+    // name with the stub.
+    if (ev.cwd) { a.name = nameFor(ev.cwd, id); a.cwd = ev.cwd; }
     a.transcript = ev.transcript_path || a.transcript;
     a.finished = false;
     refreshContext(a);
