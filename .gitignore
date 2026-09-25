@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# local env / secrets
+.env
+.env.*
+!.env.example
+
+# editor / OS cruft
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Claude Code local state
+.claude/settings.local.json
+
+# logs
+*.log
+npm-debug.log*
