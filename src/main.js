@@ -960,7 +960,11 @@ function applyState(view, state) {
     }
   }
 
-  if (state.finished) chime('done');
+  // Only on the transition. The relay leaves `finished` true until that
+  // session's next event, so a snapshot on reconnect would otherwise fire one
+  // chime per idle agent every time the page loads.
+  if (state.finished && view.prev.finished === false) chime('done');
+  view.prev.finished = !!state.finished;
   if ((state.status === 'waiting' || state.status === 'permission') && view.prev.status !== state.status) chime('attention');
   view.prev.status = state.status;
 
@@ -1309,7 +1313,18 @@ addEventListener('keydown', (e) => {
   if (k === 'g') { jumpToNeedy(); return; } // #1: jump to whoever needs you
   keys[k] = true;
 });
-addEventListener('keyup', (e) => { if (typingInField(e) || anyModalOpen()) return; keys[e.key.toLowerCase()] = false; });
+// Releasing a key must ALWAYS clear it. The guard on keydown is there to stop
+// typing from driving the hero, but applying that same guard here strands the
+// key as held: click into the chat box mid-stride, let go, and you walk into a
+// wall forever.
+addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+// The browser never delivers keyup for a key released while the page is in the
+// background, so drop everything held on the way out. Without this, tabbing
+// away mid-stride and coming back leaves the hero running.
+const releaseKeys = () => { for (const k in keys) keys[k] = false; };
+addEventListener('blur', releaseKeys);
+document.addEventListener('visibilitychange', () => { if (document.hidden) releaseKeys(); });
 
 // ===========================================================================
 // HUD + click-to-interact + rename
@@ -1456,6 +1471,9 @@ renameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.prev
 // ===========================================================================
 const SPEECH_W = 30;            // characters per line before wrapping
 const SPEECH_MAX_LINES = 5;
+// The 3D bubble is a fresh canvas + GPU texture upload every time its text
+// changes. A streamed answer changes it once per token, so sample it instead.
+const SPEECH_STREAM_MS = 120;
 
 function wrapText(text, cols) {
   const lines = [];
@@ -1618,12 +1636,21 @@ function onSay(m) {
     entry.text = (entry.streaming ? entry.text : '') + m.delta;
     entry.streaming = true; entry.muted = false;
     renderChat();
-    if (v) setSpeech(v, entry.text, false);
+    // The DOM log above is cheap and updates on every fragment. The bubble is
+    // not, so it samples — and the `done` branch below always writes the final
+    // text, so nothing is dropped.
+    if (v) {
+      const now = performance.now();
+      if (!v.speechAt || now - v.speechAt > SPEECH_STREAM_MS) {
+        v.speechAt = now;
+        setSpeech(v, entry.text, false);
+      }
+    }
     return;
   }
   const text = m.text || excuse || "couldn't get an answer";
   if (entry) { entry.text = text; entry.muted = !m.text; renderChat(); pendingByAgent.delete(m.id); }
-  if (v) { v.awaitingReply = false; setSpeech(v, text, !m.text); }
+  if (v) { v.awaitingReply = false; v.speechAt = 0; setSpeech(v, text, !m.text); }
   if (m.text) chime('done');
 }
 

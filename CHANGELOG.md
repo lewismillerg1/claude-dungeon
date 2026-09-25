@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Held movement keys could never be released in two cases, leaving the hero
+  walking on his own: releasing a key while the chat box had focus (the keyup
+  handler reused the keydown guard and bailed out early), and releasing it
+  while the page was in the background (the browser delivers no keyup at all).
+  Keyup now always clears, and `blur`/`visibilitychange` drop everything held.
+- Reconnecting replayed `finished` for every idle session, so a page refresh
+  fired one completion chime per idle agent. It now only chimes on the actual
+  transition.
+
+### Changed
+- The 3D speech bubble is a canvas plus a GPU texture upload rebuilt whenever
+  its text changes, which during a streamed answer meant once per token. It is
+  now sampled at ~8/second; the chat log still updates on every fragment and
+  the final text is always written in full.
+
 ## [0.2.0] — 2026-09-25
 
 First public release.
