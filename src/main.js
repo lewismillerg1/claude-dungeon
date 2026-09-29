@@ -1024,7 +1024,7 @@ function removeAgent(id) {
   pending.delete(id);
   pendingByAgent.delete(id);
   if (nearby === v) { nearby = null; setChatTarget(null); }
-  if (selected === v) { selected = null; dlg.classList.remove('show'); }
+  if (selected === v) closeDetail();
   updateHUD();
 }
 
@@ -1202,9 +1202,9 @@ const promptGamertag = openGamertagModal;
 gtConfirm.addEventListener('click', commitGamertag);
 gtCancel.addEventListener('click', closeGamertagModal);
 gtModal.addEventListener('click', (e) => { if (e.target === gtModal) closeGamertagModal(); });
+// Escape is handled globally by closeTopOverlay, so it isn't repeated here.
 gtInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); commitGamertag(); }
-  else if (e.key === 'Escape') { e.preventDefault(); closeGamertagModal(); }
 });
 
 // ---- Tutorial modal (asked on load) ----
@@ -1289,7 +1289,17 @@ const keyForRoom = (i) => ROOM_KEYS[i] || '';
 const keys = {};
 const renameInput = document.getElementById('dlg-rename');
 const typingInField = (e) => e.target === renameInput || e.target === gtInput || e.target === chatInput;
+// Escape always backs out of whatever is on top, even from inside a text
+// field — otherwise you have to hunt for the close button with the mouse.
+function closeTopOverlay() {
+  if (tutModal.classList.contains('show')) { closeTutorial(); return true; }
+  if (gtModal.classList.contains('show')) { closeGamertagModal(); return true; }
+  if (chatOpen()) { closeChat(); return true; }
+  if (dlg.classList.contains('show')) { closeDetail(); return true; }
+  return false;
+}
 addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && closeTopOverlay()) { e.preventDefault(); return; }
   if (typingInField(e) || anyModalOpen()) return;
   const k = e.key.toLowerCase();
   if (k === 'n') { promptGamertag(); return; } // set your gamertag
@@ -1305,7 +1315,6 @@ addEventListener('keydown', (e) => {
     ensureAudio(); openChat();
     return;
   }
-  if (k === 'escape' && chatOpen()) { closeChat(); return; }
   if (k === '=' || k === '+') { setZoom(camZoom / 1.12); return; }  // zoom in
   if (k === '-' || k === '_') { setZoom(camZoom * 1.12); return; }  // zoom out
   const roomI = ROOM_KEYS.indexOf(k);
@@ -1395,7 +1404,9 @@ function renderDetail(view) {
   dlgFeed.innerHTML = hist.length
     ? hist.slice().reverse().map((e) => `<div class="feed-row"><span class="ft">${escapeHtml(e.t || '')}</span> ${escapeHtml(e.text || '')}</div>`).join('')
     : '<div class="feed-empty">no activity yet</div>';
-  renameInput.value = displayName(view.id, s.name);
+  // Don't clobber what the user is typing — the HUD re-renders this panel
+  // once a second, which would otherwise wipe the field mid-rename.
+  if (document.activeElement !== renameInput) renameInput.value = displayName(view.id, s.name);
 }
 
 let selected = null;
@@ -1447,8 +1458,10 @@ canvas.addEventListener('click', (e) => {
   if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
   const v = pick(e.clientX, e.clientY);
   if (v) selectView(v);
-  else { selected = null; dlg.classList.remove('show'); }
+  else closeDetail();
 });
+
+function closeDetail() { selected = null; dlg.classList.remove('show'); renameInput.blur(); }
 
 function commitRename() {
   if (!selected) return;
